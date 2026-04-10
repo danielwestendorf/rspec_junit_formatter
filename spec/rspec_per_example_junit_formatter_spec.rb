@@ -51,34 +51,36 @@ describe RspecPerExampleJunitFormatter do
   let(:failed_testcases) { doc.xpath("/testsuite/testcase[failure]") }
   let(:shared_testcases) { doc.xpath("/testsuite/testcase[contains(@name, 'shared example')]") }
 
-  it "includes per-example file paths with line numbers", aggregate_failures: true do
-    testcases.each do |testcase|
-      expect(testcase["file"]).to match(%r{\./spec/\w+\.rb:\d+}),
-        "expected file attribute '#{testcase["file"]}' to include a line number"
-    end
-  end
+  # Combined into a single example so we don't have to re-run the example rspec
+  # process over and over.
+  it "correctly describes the test results with per-example scoped IDs", aggregate_failures: true do
+    # file attributes use the example.id format with scoped IDs
 
-  it "points each example to its own line number", aggregate_failures: true do
+    testcases.each do |testcase|
+      expect(testcase["file"]).to match(%r{\./spec/\w+\.rb\[\d+(?::\d+)*\]}),
+        "expected file attribute '#{testcase["file"]}' to use scoped ID format"
+    end
+
+    # different examples have different scoped IDs
+
     file_attrs = testcases.map { |tc| tc["file"] }
+    expect(file_attrs.uniq.size).to eql(testcases.size)
 
-    expect(file_attrs.uniq.size).to be > 1,
-      "expected different examples to have different line numbers"
-  end
+    # shared examples are scoped under the including file, not the definition file
 
-  it "uses the definition site for shared examples", aggregate_failures: true do
     shared_testcases.each do |testcase|
-      expect(testcase["file"]).to match(%r{shared_examples\.rb:\d+})
+      expect(testcase["file"]).to match(%r{example_spec\.rb\[})
     end
-  end
 
-  it "preserves classname based on file path without line number", aggregate_failures: true do
+    # classname is derived from file path without scoped ID leaking in
+
     testcases.each do |testcase|
-      expect(testcase["classname"]).to match(/\Aspec\.\w+_spec\z/).or(match(/\Aspec\.\w+\z/))
-      expect(testcase["classname"]).not_to match(/:\d+/)
+      expect(testcase["classname"]).to eql("spec.example_spec")
+      expect(testcase["classname"]).not_to match(/\[/)
     end
-  end
 
-  it "produces valid testsuite attributes", aggregate_failures: true do
+    # testsuite attributes are correct
+
     expect(testsuite).not_to be(nil)
     expect(testsuite["tests"]).to eql("12")
     expect(testsuite["skipped"]).to eql("1")

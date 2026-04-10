@@ -16,8 +16,7 @@ class RSpecPerExampleJUnitFormatter < RSpecJUnitFormatter
 private
 
   def example_group_file_path_for(notification)
-    metadata = notification.example.metadata
-    "#{metadata[:file_path]}:#{metadata[:line_number]}"
+    notification.example.id
   end
 end
 
